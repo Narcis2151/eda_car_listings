@@ -4,6 +4,7 @@ import random
 import time
 from typing import List, Dict
 
+import pandas as pd
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright, Page, BrowserContext
@@ -18,7 +19,7 @@ def make_stealth_context(pw, headless=False) -> BrowserContext:
         headless=headless,
         args=[
             "--disable-blink-features=AutomationControlled",
-            "--start-maximized",  # Use maximized window
+            "--start-maximized",
         ],
     )
     context = browser.new_context(
@@ -27,8 +28,7 @@ def make_stealth_context(pw, headless=False) -> BrowserContext:
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/125.0.0.0 Safari/537.36"
         ),
-        ## FIX: Use a maximized viewport and a German locale to match the target site
-        viewport=None,  # None for maximized window
+        viewport=None,
         locale="de-DE",
         timezone_id="Europe/Berlin",
     )
@@ -100,7 +100,6 @@ def scrape_all_make_pages(
             print(f"No more listings found on page {page_num}. Stopping.")
             break
 
-        # FIX: Increased delay between scraping search result pages
         print("Taking a longer break between search pages...")
         time.sleep(random.uniform(8.0, 15.0))
 
@@ -108,7 +107,6 @@ def scrape_all_make_pages(
     return all_listings
 
 
-# --- The data extraction functions remain the same ---
 def extract_price_from_listing(soup: BeautifulSoup):
     try:
         car_price_div = soup.find("div", attrs={"data-testid": "vip-price-label"})
@@ -125,11 +123,6 @@ def extract_technical_details_from_listing(soup: BeautifulSoup):
         return {dt.text.strip(): dd.text.strip() for dt, dd in car_data_pairs}
     except (AttributeError, IndexError): return {}
 
-def extract_additional_details_from_listing(soup: BeautifulSoup):
-    try:
-        features_list = soup.find("ul", attrs={"data-testid": "vip-features-list"})
-        return [li.text.strip() for li in features_list.find_all("li")]
-    except (AttributeError, IndexError): return []
 
 
 def scrape_all_listings_for_make(
@@ -137,8 +130,7 @@ def scrape_all_listings_for_make(
 ) -> List[Dict]:
     all_details = []
     for listing_url in tqdm(make_listings, desc=f"Scraping details for {make_name}"):
-        try:
-            # Create a new browser context for each listing
+        try:# Create a new browser context for each listing
             context = make_stealth_context(pw, headless=False)
             page = context.new_page()
             
@@ -154,24 +146,17 @@ def scrape_all_listings_for_make(
                 "make": make_name,
                 "price": extract_price_from_listing(soup),
                 "technical_details": extract_technical_details_from_listing(soup),
-                "additional_details": extract_additional_details_from_listing(soup),
             }
             all_details.append(details)
-            os.makedirs("./data", exist_ok=True)
-            with open(f"./data/playwright_{make_name}_details.pkl", "wb") as f:
-                pickle.dump(all_details, f)
                 
-            # Close the context and browser for this listing
             page.close()
             context.close()
             context.browser.close()
             
-            # FIX: Increased delay between scraping individual listings
             time.sleep(random.uniform(1.0, 2.0))
         except Exception as e:
             print(f"Error scraping listing {listing_url}: {e}")
             time.sleep(random.uniform(1.0, 2.0))
-            # Make sure to close the context and browser even if there's an error
             try:
                 page.close()
                 context.close()
@@ -181,6 +166,18 @@ def scrape_all_listings_for_make(
             continue
     return all_details
 
+def load_and_clean_data() -> pd.DataFrame:
+    with open('./data/listings_details.pkl', 'rb') as f:
+        data = pd.read_pickle(f)
+    for make, records in data.items():
+        for record in records:
+            record['Make'] = make
+    raw_data = []
+    for make, records in data.items():
+        raw_data.extend(records)
+    raw_data = pd.DataFrame(raw_data)
+    raw_data.to_csv('./data/raw_data.csv', index=False)
+    return raw_data
 
 if __name__ == "__main__":
     makes = {
@@ -193,20 +190,26 @@ if __name__ == "__main__":
         # --- Part 1: Scrape listing URLs ---
         all_make_links = {}
         all_make_links: Dict[str, List[str]] = {}
-        if os.path.exists("./data/new_short_make_links.pkl"):
-            with open("./data/new_short_make_links.pkl", "rb") as f:
+        if os.path.exists("./data/makes_listings.pkl"):
+            with open("./data/makes_listings.pkl", "rb") as f:
                 all_make_links = pickle.load(f)
         else:
             context = make_stealth_context(pw, headless=False)
             for make, make_id in makes.items():
                 make_links = scrape_all_make_pages(context, make_id, max_pages=50)
                 all_make_links[make] = make_links
-            with open("./data/new_short_make_links.pkl", "wb") as f:
+            with open("./data/makes_listings.pkl", "wb") as f:
                 pickle.dump(all_make_links, f)
             context.close()
             context.browser.close()
 
         # --- Part 2: Scrape details ---
+        all_listings_details = {}
         for make, links in all_make_links.items():
             if links:
-                scrape_all_listings_for_make(pw, links, make)
+                listings_details = scrape_all_listings_for_make(pw, links, make)
+                all_listings_details[make] = listings_details
+        with open("./data/listings_details.pkl", "wb") as f:
+            pickle.dump(all_listings_details, f)
+        
+        load_and_clean_data()

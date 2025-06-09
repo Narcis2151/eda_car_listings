@@ -3,7 +3,7 @@ name = "eda-car-listings"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "anyio==4.7.0",
     "appnope==0.1.4",
@@ -59,6 +59,7 @@ dependencies = [
     "markupsafe==3.0.2",
     "matplotlib==3.10.0",
     "matplotlib-inline==0.1.7",
+    "missingno>=0.5.2",
     "mistune==3.1.0",
     "nbclient==0.10.2",
     "nbconvert==7.16.5",
@@ -111,6 +112,7 @@ dependencies = [
     "sortedcontainers==2.4.0",
     "soupsieve==2.6",
     "stack-data==0.6.3",
+    "statsmodels>=0.14.4",
     "streamlit>=1.45.1",
     "terminado==0.18.1",
     "tinycss2==1.4.0",
