@@ -112,17 +112,21 @@ def extract_price_from_listing(soup: BeautifulSoup):
         car_price_div = soup.find("div", attrs={"data-testid": "vip-price-label"})
         car_price = car_price_div.find("div").text
         return car_price
-    except (AttributeError, IndexError): return "Price not found"
+    except (AttributeError, IndexError):
+        return "Price not found"
+
 
 def extract_technical_details_from_listing(soup: BeautifulSoup):
     try:
-        car_data_article = soup.find("article", attrs={"data-testid": "vip-technical-data-box"})
+        car_data_article = soup.find(
+            "article", attrs={"data-testid": "vip-technical-data-box"}
+        )
         car_data_dl = car_data_article.find("dl")
         car_data_items = car_data_dl.find_all(["dt", "dd"])
         car_data_pairs = list(zip(car_data_items[::2], car_data_items[1::2]))
         return {dt.text.strip(): dd.text.strip() for dt, dd in car_data_pairs}
-    except (AttributeError, IndexError): return {}
-
+    except (AttributeError, IndexError):
+        return {}
 
 
 def scrape_all_listings_for_make(
@@ -130,10 +134,10 @@ def scrape_all_listings_for_make(
 ) -> List[Dict]:
     all_details = []
     for listing_url in tqdm(make_listings, desc=f"Scraping details for {make_name}"):
-        try:# Create a new browser context for each listing
+        try:  # Create a new browser context for each listing
             context = make_stealth_context(pw, headless=False)
             page = context.new_page()
-            
+
             soup = scrape_single_page(page, listing_url)
             if not soup.find("div", attrs={"data-testid": "vip-price-label"}):
                 print(f"Skipping invalid or blocked listing: {listing_url}")
@@ -141,18 +145,18 @@ def scrape_all_listings_for_make(
                 context.close()
                 context.browser.close()
                 continue
-                
+
             details = {
                 "make": make_name,
                 "price": extract_price_from_listing(soup),
                 "technical_details": extract_technical_details_from_listing(soup),
             }
             all_details.append(details)
-                
+
             page.close()
             context.close()
             context.browser.close()
-            
+
             time.sleep(random.uniform(1.0, 2.0))
         except Exception as e:
             print(f"Error scraping listing {listing_url}: {e}")
@@ -166,18 +170,20 @@ def scrape_all_listings_for_make(
             continue
     return all_details
 
+
 def load_and_clean_data() -> pd.DataFrame:
-    with open('./data/listings_details.pkl', 'rb') as f:
+    with open("./data/listings_details.pkl", "rb") as f:
         data = pd.read_pickle(f)
     for make, records in data.items():
         for record in records:
-            record['Make'] = make
+            record["Make"] = make
     raw_data = []
     for make, records in data.items():
         raw_data.extend(records)
     raw_data = pd.DataFrame(raw_data)
-    raw_data.to_csv('./data/raw_data.csv', index=False)
+    raw_data.to_csv("./data/raw_data.csv", index=False)
     return raw_data
+
 
 if __name__ == "__main__":
     makes = {
@@ -211,5 +217,5 @@ if __name__ == "__main__":
                 all_listings_details[make] = listings_details
         with open("./data/listings_details.pkl", "wb") as f:
             pickle.dump(all_listings_details, f)
-        
+
         load_and_clean_data()

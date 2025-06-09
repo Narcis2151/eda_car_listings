@@ -15,6 +15,7 @@ This is an interactive dashboard built with Streamlit and Plotly for analyzing c
 
 1. Clone this repository
 2. Install the required packages:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -23,35 +24,10 @@ pip install -r requirements.txt
 
 1. Make sure you have the processed data file at `./data/processed_data.csv`
 2. Run the Streamlit app:
+
 ```bash
 streamlit run app.py
 ```
 
-3. The application will open in your default web browser at `http://localhost:8501`
+The application will open in your default web browser at `http://localhost:8501`
 
-## Usage
-
-- Use the sidebar filters to select specific car makes and price ranges
-- Navigate through different analysis tabs to explore various aspects of the data
-- Interact with the plots by hovering, zooming, and panning
-- View summary statistics in the sidebar
-
-## Data Requirements
-
-The application expects a CSV file with the following columns:
-- price
-- Mileage
-- Power
-- Cubic Capacity
-- Make
-- Fuel
-- Transmission
-- Drive type
-
-## Technologies Used
-
-- Streamlit
-- Plotly
-- Pandas
-- NumPy
-- scikit-learn
